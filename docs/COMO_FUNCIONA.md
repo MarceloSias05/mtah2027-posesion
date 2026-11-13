@@ -91,16 +91,23 @@ Aplica la regla de histeresis con los parametros de Metrica tal cual a BAR-ATH. 
 
 No la calificamos contra los 5 min publicos (no queremos tentarnos a ajustar con eso). Es nuestra red de seguridad: si todo lo demas falla, esto ya le gana al baseline en datos externos.
 
-## 8. Que sigue (por impacto)
+## 8. El modelo de segmentos (`src/segmentos.py`, `src/generar_v1.py`) - entrega actual
 
-1. modelo de segmentos en vez de la regla a mano: que elija la secuencia completa de posesiones mas creible usando cuanto suelen durar
-2. leer la posesion en la forma de los equipos cuando no hay balon (el que ataca se abre y avanza)
-3. balon del video + filtro del mecatronico en los huecos
-4. bordes del balon muerto con balon fuera de la cancha y Smart Tagging
+La histeresis es una regla a mano. El siguiente paso fue que un modelo aprenda de los partidos de Metrica que tan probable es H, A o D en cada frame, y que despues un **viterbi** escoja la secuencia completa de posesiones mas creible, cobrando cada cambio. Es como decir "prefiero pocas posesiones largas a muchas cortitas, a menos que la evidencia de un cambio sea fuerte". Eso es exactamente lo que premia el spellF1.
+
+Señales por frame: si falta el balon y que tan largo es el hueco, distancia del mas cercano de cada equipo, velocidad del balon, balon fuera de la cancha, velocidad de los jugadores, promedios en ventanas de 0.5/1/3 s, y la salida de la histeresis. Clasificador HistGradientBoosting entrenado solo en Metrica, con los datos volteados local/visitante para que no aprenda sesgos de un partido.
+
+Fuera de muestra: **0.623** promedio (histeresis 0.589, baseline 0.383). Sin la histeresis como señal salio peor (0.569), y sin el viterbi el clasificador solo saca ~0.3: el viterbi es la pieza clave. Costos elegidos con prueba cruzada en Metrica (cambio 8, balon muerto 20). Sale identico byte por byte en cada corrida con las versiones de `requirements-nuestro.txt`.
+
+## 9. Que sigue (por impacto)
+
+1. leer la posesion en la forma de los equipos cuando no hay balon (el que ataca se abre y avanza)
+2. balon del video + filtro del mecatronico en los huecos
+3. bordes del balon muerto con balon fuera de la cancha y Smart Tagging
 
 Cada cosa entra a la entrega **solo si sube en el banco**.
 
-## 9. Lo que vamos a necesitar para el documento tecnico
+## 10. Lo que vamos a necesitar para el documento tecnico
 
 - enfoque y por que (secciones 1, 3, 4)
 - assets usados y descartados: tracking si, homografia si (para el video), video tactico si (detector), broadcast no por ahora, smart tagging pendiente
