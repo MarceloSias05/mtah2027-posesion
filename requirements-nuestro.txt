@@ -1,4 +1,4 @@
-# versiones fijas para que la entrega salga identica byte por byte
+# versiones fijas para que la entrega salga identica byte por byte (python 3.11+, probado en 3.13)
 numpy==2.5.3
 pandas==3.0.5
 scikit-learn==1.9.1

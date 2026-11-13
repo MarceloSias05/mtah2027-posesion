@@ -71,3 +71,4 @@ models/*
 
 # datos externos (se bajan con src/descargar_metrica.sh)
 data_externa/
+.venv-repro/

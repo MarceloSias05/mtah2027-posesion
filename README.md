@@ -15,6 +15,14 @@ La base (`games.py`, `evaluation/`, `starter/`) es del repo oficial de los organ
 
 Explicacion completa con el por que de cada cosa: **[docs/COMO_FUNCIONA.md](docs/COMO_FUNCIONA.md)**. El dia a dia de lo que fuimos probando: [docs/bitacora/](docs/bitacora/).
 
+Documento tecnico para la entrega (ingles): **[docs/technical_document.md](docs/technical_document.md)**. Checklist de entrega: **[ENTREGA.md](ENTREGA.md)**.
+
+**Regenerar la entrega con un solo comando** (python 3.11+, data en `data/tactical/`):
+
+```bash
+bash reproducir.sh <nombre_equipo>     # ~4 min, deja outputs/<nombre_equipo>.csv validado
+```
+
 ## Resultados hasta ahora (banco de Metrica, spellF1)
 
 | metodo | juego 1 | juego 2 | juego 3 | promedio |
