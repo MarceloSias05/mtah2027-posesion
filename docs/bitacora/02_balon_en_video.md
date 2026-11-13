@@ -20,3 +20,5 @@ Un detalle que nos costo pensar: el script nunca hace seek en el video, siempre 
 Lo probamos con un video sintetico (un punto blanco donde la homografia dice que esta el centro de la cancha) y un detector falso. Los frames salen alineados y la ida y vuelta de la homografia da 0.500 / 0.500 como debe. Tambien probamos que si lo cortas y lo vuelves a correr sigue donde iba.
 
 **Pendiente:** correrlo de verdad en la mac (M5, 24gb) con `--limit 300` primero para ver los fps y luego todo en la noche. Calculamos 2 a 5 horas pero no sabemos hasta ver los fps reales. El csv que sale (`outputs/ball_video.csv`) no se sube al repo porque es data derivada del video frame por frame y las reglas no dejan publicarla.
+
+Para correrlo en la noche dejamos `tools/correr_balon_noche.sh`, arma el venv, baja los pesos, hace una prueba de 300 frames que imprime la velocidad y luego corre todo con caffeinate para que la mac no se duerma.
