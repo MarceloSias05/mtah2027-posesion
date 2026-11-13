@@ -1,31 +1,41 @@
-"""Buscar el balon en el video tactico con un detector ya entrenado (de otros partidos).
+"""Detect the ball in the tactical video with a public, pre-trained detector.
 
-El tracking automatico pierde el balon en ~41% de los frames que califican, entonces
-aqui lo buscamos en el video solo en esos frames. El modelo es el de roboflow/sports
-(football-ball-detection, YOLOv8, codigo MIT) entrenado con videos de la Bundesliga
-(dataset DFL de kaggle). Nunca vio este partido. No entrenamos ni ajustamos nada con
-el video ni con el ground truth, eso lo prohibe el correo de aclaracion de reglas.
+Why this exists
+---------------
+The automatic tracking loses the ball on 41% of graded frames. This script looks for it in the
+video on exactly those frames, with a model that was trained on OTHER games, and writes every
+candidate it finds to a small CSV. Nothing here is trained, fitted or tuned on this match, its
+video or its ground truth (see the organisers' rule clarification).
 
-Los settings de inferencia son los mismos que usa roboflow/sports para ese modelo
-(tiles de 640, imgsz 640, nms 0.1). El conf lo dejamos bajito a proposito y guardamos
-todos los candidatos con su score, la seleccion se hace despues.
+The detector
+------------
+roboflow/sports "football-ball-detection" (YOLOv8, MIT-licensed code), trained on the Roboflow
+Universe dataset roboflow-jvuqo/football-ball-detection-rejhg, built from the DFL Bundesliga
+Kaggle videos. Not LaLiga, not this match.
 
-Tambien corre en 1 de cada 25 frames donde el ATD si tiene balon. Eso es solo para
-ver que tanto coinciden detector y tracking (check automatico), no para elegir umbrales.
+Inference settings are the ones roboflow/sports ships for that model (640 px tiles, imgsz 640,
+NMS IoU 0.1). The confidence floor is deliberately low: every candidate is written out with its
+score, and choosing among them happens later, offline, with rules calibrated on external data.
 
-Como correrlo (mac):
+Which frames
+------------
+By default only graded frames (both halves) where the ATD has no ball, plus one frame in every
+--check-every frames where the ATD does have it. That second set exists for an automatic check
+only: how often detector and ATD agree. It is never used to pick thresholds.
+
+Run (Apple Silicon)
+-------------------
     pip install -r tools/requirements-video.txt
-    python tools/ball_from_video.py --download-weights   # una vez
-    python tools/ball_from_video.py --limit 300          # prueba, para ver los fps
-    python tools/ball_from_video.py                      # todo, se puede cortar y reanudar
+    python tools/ball_from_video.py --download-weights      # once
+    python tools/ball_from_video.py                          # resumable; Ctrl-C is safe
 
-Sale en outputs/ball_video.csv (esta en el gitignore, no se puede publicar data
-derivada del video frame por frame)
+Output: outputs/ball_video.csv  (gitignored -- frame-level data derived from the match video
+must not be published, see RULES.md)
 
     frame,reason,rank,px,py,conf,pitch_x,pitch_y
 
-reason = "missing" (el ATD no tenia balon) o "check". rank 0 = el mas seguro.
-si no encontro nada se escribe una fila con rank -1 para saber que ya se proceso.
+`reason` is "missing" (ATD had no ball) or "check". `rank` 0 is the most confident candidate.
+Frames with no candidate get one row with rank -1 so a resumed run knows they were processed.
 """
 
 import argparse
@@ -43,22 +53,22 @@ sys.path.insert(0, os.path.join(ROOT, "starter"))
 from games import asset_paths  # noqa: E402
 from load_homography import load as load_homography, unproject  # noqa: E402
 
-WEIGHTS_GDRIVE_ID = "1isw4wx-MK9h9LMr36VvIWlJD6ppUvw7V"   # sacado del setup.sh de roboflow/sports
+WEIGHTS_GDRIVE_ID = "1isw4wx-MK9h9LMr36VvIWlJD6ppUvw7V"   # from roboflow/sports setup.sh
 DEFAULT_WEIGHTS = os.path.join(ROOT, "models", "football-ball-detection.pt")
 DEFAULT_OUT = os.path.join(ROOT, "outputs", "ball_video.csv")
 
-HALVES = ((11185, 90651), (110808, 190197))   # frames que califican (DATA.md)
-TILE = 640                                     # tamaño de tile igual que roboflow
-OVERLAP = 64                                   # px, para que no se corte el balon entre tiles
+HALVES = ((11185, 90651), (110808, 190197))   # graded video frames, from DATA.md
+TILE = 640                                     # roboflow/sports slice size
+OVERLAP = 64                                   # px, so a ball on a tile seam is not cut in half
 IMGSZ = 640
-NMS_IOU = 0.1                                  # igual que roboflow
-CONF_FLOOR = 0.05                              # guardamos hasta los debiles, se filtra despues
+NMS_IOU = 0.1                                  # roboflow/sports value
+CONF_FLOOR = 0.05                              # keep weak candidates; selection happens later
 MAX_PER_FRAME = 5
-PITCH_MARGIN = 0.03                            # un poquito fuera de la cancha todavia cuenta
+PITCH_MARGIN = 0.03                            # normalised; tolerance outside the touchlines
 
 
 def frames_to_process(atd_raw, check_every):
-    # regresa {frame_video: reason}, solo lee la parte del balon de cada linea
+    """{video_frame: reason}. Reads only the ball field of each ATD line."""
     wanted = {}
     graded = np.zeros(200000, dtype=bool)
     for start, end in HALVES:
@@ -103,14 +113,14 @@ def download_weights(path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="detector de balon sobre el video tactico")
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     parser.add_argument("--weights", default=DEFAULT_WEIGHTS)
-    parser.add_argument("--video", default=None, help="por default el video tactico")
+    parser.add_argument("--video", default=None, help="defaults to the tactical video")
     parser.add_argument("--out", default=DEFAULT_OUT)
-    parser.add_argument("--device", default="mps", help="mps en mac, cuda o cpu")
+    parser.add_argument("--device", default="mps", help="mps on Apple Silicon, cuda, or cpu")
     parser.add_argument("--check-every", type=int, default=25,
-                        help="correr tambien en 1 de cada N frames con balon en el ATD (0 = no)")
-    parser.add_argument("--limit", type=int, default=0, help="parar despues de N frames (para probar)")
+                        help="also run on 1 in N frames where the ATD has the ball (0 = never)")
+    parser.add_argument("--limit", type=int, default=0, help="stop after N frames (smoke test)")
     parser.add_argument("--download-weights", action="store_true")
     args = parser.parse_args()
 
@@ -129,7 +139,7 @@ def main():
     if args.limit:
         todo = todo[:args.limit]
     n_missing = sum(1 for r in wanted.values() if r == "missing")
-    print("frames: {} sin balon + {} check, {} ya hechos, faltan {}".format(
+    print("frames: {} missing-ball + {} check, {} already done, {} to go".format(
         n_missing, len(wanted) - n_missing, len(done), len(todo)))
     if not todo:
         return
@@ -146,16 +156,16 @@ def main():
 
     capture = cv2.VideoCapture(video_path)
     if not capture.isOpened():
-        sys.exit("no se pudo abrir el video: {}".format(video_path))
+        sys.exit("cannot open video: {}".format(video_path))
     width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
     origins = tile_origins(width, height)
 
     n_video = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
-    print("video {}x{}, {} frames (deberian ser 199319), {} tiles por frame".format(
+    print("video {}x{}, {} frames (expected 199319), {} tiles per frame".format(
         width, height, n_video, len(origins)))
-    # siempre leemos desde el frame 0, sin hacer seek. el seek en mp4 a veces cae unos frames
-    # despues y eso nos desalinea todo. con grab() saltar frames tarda poco
+    # Always read from frame 0, never seek: seeking in an mp4 can land a few frames off, and a
+    # few frames off is a wrong answer here. Skipping with grab() costs minutes, not hours.
     position = 0
 
     todo_set = set(todo)
@@ -181,7 +191,7 @@ def main():
                     cx = (xyxy[0] + xyxy[2]) / 2 + ox
                     cy = (xyxy[1] + xyxy[3]) / 2 + oy
                     boxes.append((float(conf), float(cx), float(cy)))
-            # si dos tiles detectan lo mismo (a menos de 6px) nos quedamos con el de mas conf
+            # merge duplicates from overlapping tiles: keep the stronger of two within 6 px
             boxes.sort(reverse=True)
             kept = []
             for conf, cx, cy in boxes:
@@ -194,7 +204,7 @@ def main():
                     gx, gy = float(gx), float(gy)
                     if not (-PITCH_MARGIN <= gx <= 1 + PITCH_MARGIN
                             and -PITCH_MARGIN <= gy <= 1 + PITCH_MARGIN):
-                        continue          # esta en la grada o en un anuncio, fuera
+                        continue          # in the stands, on a sponsor board, etc.
                 else:
                     gx = gy = float("nan")
                 rows.append((conf, cx, cy, gx, gy))
@@ -213,14 +223,14 @@ def main():
                 out.flush()
                 rate = processed / (time.time() - t0)
                 left = (len(todo) - processed) / rate / 60
-                print("  {:>6}/{}  frame {:>6}  {:.1f} fps  faltan ~{:.0f} min".format(
+                print("  {:>6}/{}  frame {:>6}  {:.1f} fps  ~{:.0f} min left".format(
                     processed, len(todo), position, rate, left), flush=True)
     except KeyboardInterrupt:
-        print("\nse corto, pero lo avanzado ya esta guardado. correlo otra vez para seguir")
+        print("\ninterrupted; progress is saved, run again to resume")
     finally:
         out.close()
         capture.release()
-    print("listo {} ({} frames en esta corrida)".format(args.out, processed))
+    print("wrote {} ({} frames this run)".format(args.out, processed))
 
 
 if __name__ == "__main__":

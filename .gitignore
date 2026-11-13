@@ -68,3 +68,6 @@ outputs/*
 models/*
 !outputs/.gitkeep
 !models/.gitkeep
+
+# datos externos (se bajan con src/descargar_metrica.sh)
+data_externa/
