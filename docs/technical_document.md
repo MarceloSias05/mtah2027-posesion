@@ -10,17 +10,15 @@ Submission file: `<team_name>.csv` (regenerate with `bash reproducir.sh <team_na
 
 ## 1. Approach in one paragraph
 
-We treat possession as a segmentation problem, not a per-frame classification problem, because that is what spellF1 rewards. A gradient-boosted classifier gives a probability of H / A / D for every frame from tracking-derived signals. A Viterbi decoder then picks the most plausible sequence of possessions over the whole match, charging a cost for every change of owner and every entry into or exit from dead ball. Since we could not tune anything on the provided game, we built a validation bench from Metrica's three public sample games and the official scorer, and every number in the pipeline was chosen there with leave-one-game-out cross-validation.
+We treat possession as a segmentation problem, because that is what spellF1 rewards. A gradient-boosted classifier gives a probability of H / A / D for every frame from tracking-derived signals, and a Viterbi decoder picks the most plausible sequence of possessions over the whole match, charging a cost for every change of owner and every entry into or exit from dead ball. Since nothing could be tuned on the provided game, we built a validation bench from Metrica's three public sample matches and the official scorer. When we noticed that the challenge's automatic tracking differs from the sample data (the ball sits about 2 m from the nearest player instead of 0.3–1.3 m, and jitters much more), we added a second, "degraded" version of the bench whose ball statistics match the challenge input, and we trained and selected everything for those conditions.
 
 ## 2. Why this approach
 
-**What the metric rewards.** spellF1 matches whole possessions one-to-one against the truth. Splitting a long possession into three because an opponent passed near the ball for a few frames costs two false positives and usually loses the true one too. The official baseline shows this: per frame it is decent (macroF1 0.65), but unsmoothed it reports thousands of possessions and scores 0.05. Our design goal was therefore *few changes, placed at the right frame*.
+**What the metric rewards.** spellF1 matches whole possessions one-to-one against the truth. Splitting a possession in three because an opponent passed near the ball for a few frames costs two false positives and usually loses the true one as well. The official baseline shows it: unsmoothed it reports thousands of possessions and scores 0.05, although per frame it is reasonable. Our goal was *few changes of owner, placed at the right frame*.
 
-**Why a bench.** The clarified rules forbid training, fitting or calibrating on the provided ground truth or video, and there is no leaderboard. Without an external place to measure, any design choice would be a guess. Metrica's public sample data (github.com/metrica-sports/sample-data, commit `e706dd5`) has three matches with tracking and synchronised event data. Game 3 is in the same EPTS format as the challenge.
+**Why a bench.** The clarified rules forbid training, fitting or calibrating on the provided ground truth or video, and there is no leaderboard. Metrica's public sample data (github.com/metrica-sports/sample-data, commit `e706dd5`) has three matches with tracking and synchronised event data; game 3 uses the same EPTS format as the challenge. From the events we derive a label per frame in the challenge format: the team of the last pass / carry / recovery / set piece / shot / ball lost / ball out owns the ball, and the ball is dead from a ball-out, foul or goal until the next set piece. We score with the challenge's own `evaluation/possession_metrics.py`.
 
-From the events we derive a possession label per frame in the challenge format: the team of the last pass / carry / recovery / set piece / shot / ball lost / ball out owns the ball, and the ball is dead from a ball-out, foul or goal until the next set piece. We score with the challenge's own `evaluation/possession_metrics.py`.
-
-To check that the bench behaves like the challenge, we ran the official baseline on it with its four smoothing windows. The ranking of the variants is the same as on BAR-ATH (window 50 best, window 125 worse, raw far worse), which gave us confidence that improvements on the bench should transfer:
+On this bench the official baseline ranks its four smoothing windows exactly as on BAR-ATH:
 
 | baseline window | Metrica G1 | G2 | G3 | BAR-ATH (official) |
 |---|---|---|---|---|
@@ -29,49 +27,65 @@ To check that the bench behaves like the challenge, we ran the official baseline
 | **50** | **0.402** | **0.390** | **0.357** | **0.243** |
 | 125 | 0.283 | 0.269 | 0.296 | 0.224 |
 
-## 3. Pipeline
+**Why a degraded bench.** Comparing input statistics only (no ground truth), the BAR-ATH tracking is clearly harder than the sample data:
 
-**Step 1: hysteresis rule** (`src/histeresis.py`). A player "controls" the ball only if they are within *r* metres of it. The owner changes only when the other team controls the ball for *k* consecutive frames. If the ball is missing from the tracking for more than *dgap* frames, the ball is dead. Selected on the bench: r = 1.0 m, k = 8 frames (0.32 s), dgap = 25 frames (1 s). On its own this scores 0.589 out of sample (baseline 0.383).
+| | median ball–nearest-player distance | median ball jitter (|Δspeed| per frame, m/s) |
+|---|---|---|
+| Metrica G1 / G2 | 0.28 m | 0.025 |
+| Metrica G3 | 1.27 m | 0.017 |
+| BAR-ATH tactical ATD | 1.91 m | 0.167 |
 
-**Step 2: per-frame classifier** (`src/segmentos.py`). Features, all of which exist identically in Metrica data and in BAR-ATH:
-- ball missing flag and the length of the gap the frame sits in
-- distance from the ball to the nearest home and nearest away player, and their difference
-- ball speed, ball outside the pitch lines, mean player speed (1 s median)
-- rolling means of the above over ±0.5 s, ±1 s and ±3 s (share of frames each team was closest / within 1.5 m, share of missing ball, etc.)
+A control rule tuned on the sample data ("a player within 1 m controls the ball") fires on 46–57% of ball frames there but only 28% in BAR-ATH. We therefore degrade the Metrica ball with two error terms: a slow drift (Gaussian noise smoothed over ~2 s) and frame-level jitter. The levels are chosen so that the median distance and jitter match BAR-ATH (`src/calibrar_ruido.py`): 1.25 m / 0.004 for G1 and G2, 1.0 m / 0.004 for G3. On the degraded bench the baseline drops to 0.323, closer to its real 0.243 on BAR-ATH, which suggests the degraded bench is the more realistic one.
+
+## 3. Pipeline (`src/generar_v2.py`)
+
+**Hysteresis rule** (`src/histeresis.py`). A player controls the ball if within *r* of it. The owner changes only when the other team controls it for *k* consecutive frames. If the ball is missing from the tracking for more than 1 s, the ball is dead. Selected on the degraded bench: r = 2.5 m, k = 18 frames (0.72 s). Its output is used as an input of the classifier.
+
+**Per-frame features** (`src/segmentos.py`), all computable identically on Metrica and BAR-ATH:
+- *ball state*: ball missing flag, length of the gap the frame sits in, time since the ball was last seen and until it is seen again
+- *proximity*: distance from the ball to the nearest home and nearest away player, and their difference
+- *touch timing*: time since each team last controlled the ball and time until it next does (the decoder is offline, so looking ahead is allowed), and their differences
+- *ball dynamics*: ball speed, sudden speed changes (kicks), ball outside the pitch lines
+- *location*: distance of the ball (or its last known position) to the nearest touchline and goal line
+- *context*: mean player speed, and rolling means of the above over ±0.5 s, ±1 s and ±3 s
 - the hysteresis output (one-hot H/A/D)
 
-Model: scikit-learn `HistGradientBoostingClassifier` (200 iterations, 31 leaves, `random_state=0`), trained on every third valid frame of the Metrica games. The training set is mirrored (home and away features and labels swapped) so the model cannot learn "the home team has the ball more often", which is a property of a particular match.
+**Classifier.** scikit-learn `HistGradientBoostingClassifier` (200 iterations, 31 leaves, `random_state=0`), trained on every third valid frame of the three Metrica matches *and* of their degraded copies. The training set is mirrored (home/away features and labels swapped), so the model cannot learn that one side has the ball more often, which is a property of a particular match.
 
-**Step 3: Viterbi decoding.** Three states (H, A, D). Switching H↔A costs 8, entering or leaving D costs 20 (in log-probability units). Costs were selected on out-of-fold predictions: each Metrica game was predicted by a model trained on the other two.
+**Viterbi decoding.** Three states (H, A, D). Switching H↔A costs 18, entering or leaving D costs 12 (log-probability units). Costs selected on out-of-fold predictions on the degraded bench.
 
-**Step 4: BAR-ATH.** The final model is trained on all three Metrica games and applied once to the BAR-ATH tactical ATD. Pitch size used to convert normalised coordinates to metres: 105 × 68.
+**Application to BAR-ATH.** The final model is trained on all six versions and applied once to the tactical ATD. Coordinates are converted to metres with a 105 × 68 pitch.
 
 ## 4. Results on the external bench
 
-Out of sample (each game predicted by a pipeline that never saw it):
+All numbers are out of sample: each Metrica match is predicted by a pipeline trained only on the other two.
 
-| method | G1 | G2 | G3 | mean |
-|---|---|---|---|---|
-| official baseline (window 50) | 0.402 | 0.390 | 0.357 | 0.383 |
-| hysteresis rule | 0.620 | 0.558 | 0.590 | 0.589 |
-| classifier, no Viterbi | ~0.27 | ~0.30 | ~0.32 | ~0.30 |
-| **classifier + Viterbi (submitted)** | **0.636** | **0.614** | **0.620** | **0.623** |
+| method | clean bench | degraded bench |
+|---|---|---|
+| official baseline (window 50) | 0.383 | 0.323 |
+| hysteresis r=1.0 m, k=8 | 0.589 | 0.377 |
+| hysteresis r=2.5 m, k=18 | – | 0.443 |
+| classifier + Viterbi, proximity features only (r=1.0) | 0.623 | 0.486 |
+| + touch timing and location (r=1.0) | 0.671 | 0.507 |
+| + touch timing and location (r=2.5, k=18) | – | 0.533 |
+| **same, trained on clean + degraded (submitted)** | **0.612** | **0.547** |
 
-We did not score our submission on the public 5-minute ground truth. It was used only to check alignment and format, as the rules ask.
+Per match on the degraded bench, the submitted pipeline scores 0.554 / 0.523 / 0.564. The classifier alone, without the Viterbi decoder, scores around 0.3: decoding is the step that makes the difference.
 
-On BAR-ATH the submission reports 464 possessions with a mean of 8.9 s, and Barcelona holds about 60% of the alive-ball time.
+We did not score our submission on the public 5-minute ground truth. It was used only to check alignment and format. On BAR-ATH the submission reports 406 possessions with a mean of 14.0 s, and Barcelona holds about 58% of alive-ball time.
 
 ## 5. Assets used and dropped
 
 | asset | used? | how |
 |---|---|---|
-| tactical ATD (tracking) | yes | the only input of the submitted pipeline |
-| tactical video | yes, experimental | ball detection in frames where the ATD has no ball (section 7). Not in the submitted file |
-| homography (tactical) | yes, experimental | to map video detections to pitch coordinates |
-| Smart Tagging | no | it has no counterpart in the external data, so we could not validate any use of it |
-| broadcast video / ATD | no | not synchronised to the tactical timeline; no time to build a reliable sync |
-| team shape features | tried, dropped | width, length, advance and forward speed of each team. Out of sample 0.608 vs 0.623 without them |
-| asymmetric dead-ball costs, dead-ball bias | tried, dropped | 0.624 in-sample vs 0.623, but 0.617 when the choice itself was cross-validated: overfitting the bench |
+| tactical ATD | yes | the only input of the submitted pipeline |
+| tactical ATD statistics | yes | to set the degradation level of the external bench (input statistics only) |
+| tactical video + homography | explored, not submitted | ball detection in frames without an ATD ball (section 7) |
+| Smart Tagging | no | no counterpart in the external data, so any use would be unvalidated |
+| broadcast video / ATD | no | not synchronised to the tactical timeline |
+| team shape (width, length, advance, forward speed) | tried, dropped | 0.608 vs 0.623 on the clean bench |
+| asymmetric dead-ball costs, dead-ball bias | tried, dropped | no gain once the choice was cross-validated (0.617 vs 0.623) |
+| larger classifier (400 iterations, 63 leaves) | tried, dropped | 0.668 vs 0.671 |
 
 ## 6. Training data
 
@@ -79,49 +93,52 @@ No labelled data from the provided game was used anywhere.
 
 | dataset | source | labelled by | amount | used for |
 |---|---|---|---|---|
-| Metrica Sports sample data, games 1–3 | github.com/metrica-sports/sample-data @ e706dd5 | Metrica Sports (event data) | 3 matches, ~430k frames | possession labels derived from events; training the classifier, selecting every parameter |
-| football-ball-detection (pre-trained weights) | roboflow/sports, trained on the Roboflow Universe dataset built from DFL Bundesliga videos | Roboflow | not trained by us | ball detection in the video (experimental only) |
+| Metrica Sports sample data, games 1–3 | github.com/metrica-sports/sample-data @ e706dd5 | Metrica Sports (event data) | 3 matches, ~430k frames | possession labels derived from events; training and every parameter choice |
+| same, degraded copies | generated by us from the above | – | 3 matches | training and parameter choice under BAR-ATH-like noise |
+| football-ball-detection (pre-trained weights) | roboflow/sports, trained on a Roboflow Universe dataset from DFL Bundesliga videos | Roboflow | not trained by us | ball detection in the video (exploration only) |
 
 ## 7. Handling missing and noisy tracking
 
-**Missing ball.** The ATD has no ball on 41% of graded frames. These gaps are not short or random: there are about 150 of them, with a median of ~10 s and some longer than 3 minutes, and during them the players move at half their usual speed (0.9 vs 1.9 m/s). In Metrica data the same holds: the ball is missing in 78–90% of dead-ball frames and only in 14–19% of alive frames. So the missing ball is mostly dead ball, and the model uses both the gap and its length as evidence. Note that the official baseline already exploits this (no ball → nobody owns it → D), so it is not an advantage by itself.
+**Missing ball.** The ATD has no ball on 41% of graded frames, in about 150 gaps with a median of ~10 s and some over 3 minutes. During the gaps players move at half their usual speed (0.9 vs 1.9 m/s). In the Metrica data the ball is missing in 78–90% of dead-ball frames and 14–19% of alive ones, so a missing ball is mostly a dead ball. The model uses the gap, its length and the position inside it. The official baseline already exploits the same fact (no ball → D), so this is not an advantage by itself; what helps is placing the boundaries of the dead periods.
 
-**Video ball detection (not in the submission).** We ran the pre-trained detector on the 64,643 frames without an ATD ball, plus 1 in 25 frames with one (only as an automatic agreement check). The ball is 4–9 px wide in the tactical view, so each frame is split into eight 640-px tiles. When the ATD has the ball, the detector's best candidate is within 2 m of it in 59% of frames. About half of all candidates are fixed objects (penalty spots, the centre spot, goal posts, an object near the touchline), which we remove with a physical rule: anything detected in the same square metre for more than a minute is not a ball in play. After that and a frame-to-frame physical-speed check, 63% of gap frames keep a clean candidate, at a median of 0.8 m from the nearest player. We could not validate its effect on possession because Metrica's sample data has no video, so it is not part of the submitted file.
+**Noisy ball.** Handled by the degraded bench and by training on clean and degraded data together (section 2). The larger control radius (2.5 m) follows from it.
 
-**Position noise.** We added Gaussian noise to the Metrica positions to see how the hysteresis rule degrades. Small control radii win on clean data, larger ones are more robust to noise. We measured the frame-to-frame jitter of the BAR-ATH ATD (median second difference of position): players 0.0014 m, ball 0.011 m, both far below what even 0.3 m of white noise produces. We kept r = 1.0 m, which is within 0.007 of the best on clean data and more robust if the noise is higher than measured.
+**Video ball detection (not submitted).** We ran a pre-trained detector on the 64,643 frames without an ATD ball, plus 1 in 25 frames with one as an automatic agreement check. The ball is 4–9 px wide in the tactical view, so frames are split into eight 640-px tiles. When the ATD has the ball, the best candidate is within 2 m of it in 59% of frames. About half the candidates are fixed objects (penalty spots, centre spot, goal posts, an object near the touchline), removed with a physical rule: anything detected in the same square metre for more than a minute is not a ball in play. After that and a frame-to-frame speed check, 63% of gap frames keep a clean candidate, at a median of 0.8 m from the nearest player. Metrica's sample data has no video, so we could not validate its effect on possession, and it is not in the submitted pipeline.
 
 ## 8. Possession rules we implemented
 
-- **Control.** A team controls the ball when its nearest player is within 1 m of the ball.
-- **Change of possession.** Requires the other team to control the ball for at least 0.32 s (8 frames). A touch, a deflection or a block by the opponent that is not followed by control does not change possession.
-- **Loose balls and long passes.** While nobody controls the ball, possession stays with the last team that did. A pass that travels 40 m is still the passing team's possession until someone controls it.
-- **Contested balls.** Possession does not change during a duel until one side keeps the ball for the threshold time. If the defending team wins it, the change is placed when its control starts.
-- **Dead ball.** The ball is dead when it goes out of the pitch lines, and also when it is missing from the tracking in a context the model recognises as a stoppage (long gap, players slowing down). In the final decoder these are probabilities, not hard rules.
+The decoder works with probabilities, so these are the behaviours it was built and calibrated to produce, not hard-coded thresholds:
+
+- **Control.** A team is considered to control the ball when its nearest player is close to it (2.5 m in the rule fed to the model, which accounts for the ball position error of the automatic tracking).
+- **Change of possession.** Requires the other team to keep control for a sustained period (0.72 s in the rule). A touch, a deflection or a block not followed by control does not change possession.
+- **Loose balls and long passes.** While nobody controls the ball, possession stays with the last team that did.
+- **Contested balls.** Possession does not change during a duel until one side keeps the ball. If the defending team wins it, the change is placed when its control starts.
+- **Dead ball.** The ball is dead when it leaves the pitch lines, and when it disappears from the tracking in a context the model recognises as a stoppage (long gap, players slowing down, ball near the lines).
 - **Restarts.** After a dead ball, possession goes to the first team that controls the ball. We do not label who owns a dead ball, as the task specifies.
 
-<analyst: add here how we treat goalkeeper saves, aerial duels and throw-ins after reviewing the video>
+<analyst: add how goalkeeper saves, aerial duels and throw-ins are treated after reviewing the video>
 
 ## 9. Limitations
 
-- **The bench is not the challenge's ground truth.** Our labels come from Metrica's event data, the challenge's from Metrica's corrected tracking. Boundaries, especially around dead ball, will differ.
-- **Three matches.** All parameters come from three games. The leave-one-game-out spread (0.614–0.636) suggests stability, but it is a small sample.
-- **Systematic tracking error.** We measured jitter, not bias. If the BAR-ATH ball position is consistently offset, the 1 m control radius could be too tight.
-- **Alive ball without tracking.** The model tends to call D when the ball is missing but play continues. This is where most of the remaining error is on the bench.
-- **Unused signals.** Smart Tagging and the video detections could help exactly in those frames, but we had no external data to validate them, so we left them out rather than add an untested component.
+- **The bench is not the challenge's ground truth.** Our labels come from Metrica's event data, the challenge's from its corrected tracking. Boundaries will differ, especially around dead ball.
+- **Three matches.** All parameters come from three games and their degraded copies.
+- **The degradation is a model.** We match the median distance and jitter of the BAR-ATH ball, but the real error may have a different shape (for example a ball in the air projected onto the pitch). The degraded bench is still easier than BAR-ATH (baseline 0.323 vs 0.243).
+- **Alive ball without tracking.** The model tends to call D when the ball is missing but play continues. This is where most of the remaining error is.
+- **Unused signals.** Smart Tagging and the video detections could help exactly there, but we had no external data to validate them, so we preferred not to add an untested component.
 
-With more time: an external dataset with video, to validate the ball detector end to end, and a semi-Markov decoder with learned possession durations.
+With more time: external data with video, to validate the ball detector end to end, and a semi-Markov decoder with learned possession durations.
 
 ## 10. Reproduction
 
-Requirements: Python 3.11+ (tested on 3.13), git, and the challenge data placed in `data/tactical/` with its original file names.
+Requirements: Python 3.11+ (tested on 3.13), git, about 3 GB of free RAM, and the challenge data in `data/tactical/` with its original file names.
 
 ```bash
 bash reproducir.sh <team_name>
 ```
 
-This creates a virtual environment with pinned versions (`requirements-nuestro.txt`: numpy 2.5.3, pandas 3.0.5, scikit-learn 1.9.1, kloppy 3.18.0), downloads Metrica's sample data at a fixed commit, trains the model, writes `outputs/<team_name>.csv` and runs the official validator. It takes about 4 minutes on a laptop. We ran it twice from a clean copy and obtained a byte-identical file (md5 `bf458c4d098e0c0cc823bae755b03b5d`).
+This creates a virtual environment with pinned versions (`requirements-nuestro.txt`: numpy 2.5.3, pandas 3.0.5, scikit-learn 1.9.1, kloppy 3.18.0), downloads Metrica's sample data at a fixed commit, builds the degraded copies, trains, writes `outputs/<team_name>.csv` and runs the official validator, in about 5 minutes on a laptop. Two runs give a byte-identical file (md5 `5d3822b7e56bb6b604da90cd208bee40`).
 
-The bench results in section 4 can be reproduced with `cd src && python calibrar_histeresis.py` (hysteresis) and `python src/generar_v1.py` (prints the out-of-fold scores).
+Other entry points: `python src/calibrar_ruido.py` (degradation levels), `cd src && python calibrar_histeresis.py` (hysteresis on the clean bench).
 
 ## 11. Use of AI tools
 

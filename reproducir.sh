@@ -16,8 +16,8 @@ pip install -q --upgrade pip
 pip install -q -r requirements-nuestro.txt
 
 bash src/descargar_metrica.sh
-python src/generar_v1.py
-cp outputs/v1_segmentos.csv outputs/$TEAM.csv
+python src/generar_v2.py
+cp outputs/v2_segmentos.csv outputs/$TEAM.csv
 python evaluation/validate_submission.py outputs/$TEAM.csv
 echo
 echo "md5 de la entrega:"

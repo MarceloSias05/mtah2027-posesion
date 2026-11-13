@@ -1,5 +1,7 @@
 # Como funciona y por que lo hicimos asi
 
+> entrega actual: **v2** (seccion 9). las secciones 7 y 8 describen versiones anteriores que siguen en el repo.
+
 Esto es la explicacion completa para el equipo (y la base del documento tecnico, que va en ingles). La bitacora tiene el orden en que fuimos descubriendo las cosas, aqui esta ordenado por tema.
 
 ---
@@ -91,7 +93,7 @@ Aplica la regla de histeresis con los parametros de Metrica tal cual a BAR-ATH. 
 
 No la calificamos contra los 5 min publicos (no queremos tentarnos a ajustar con eso). Es nuestra red de seguridad: si todo lo demas falla, esto ya le gana al baseline en datos externos.
 
-## 8. El modelo de segmentos (`src/segmentos.py`, `src/generar_v1.py`) - entrega actual
+## 8. El modelo de segmentos (`src/segmentos.py`, `src/generar_v1.py`) - v1, version anterior
 
 La histeresis es una regla a mano. El siguiente paso fue que un modelo aprenda de los partidos de Metrica que tan probable es H, A o D en cada frame, y que despues un **viterbi** escoja la secuencia completa de posesiones mas creible, cobrando cada cambio. Es como decir "prefiero pocas posesiones largas a muchas cortitas, a menos que la evidencia de un cambio sea fuerte". Eso es exactamente lo que premia el spellF1.
 
@@ -99,7 +101,17 @@ Señales por frame: si falta el balon y que tan largo es el hueco, distancia del
 
 Fuera de muestra: **0.623** promedio (histeresis 0.589, baseline 0.383). Sin la histeresis como señal salio peor (0.569), y sin el viterbi el clasificador solo saca ~0.3: el viterbi es la pieza clave. Costos elegidos con prueba cruzada en Metrica (cambio 8, balon muerto 20). Sale identico byte por byte en cada corrida con las versiones de `requirements-nuestro.txt`.
 
-## 9. Que sigue (por impacto)
+## 9. Toques, el banco sucio y la v2 (`src/generar_v2.py`) - entrega actual
+
+**Señales de toques.** Cuanto tiempo paso desde que cada equipo controlo el balon y cuanto falta para que lo vuelva a controlar, mas donde esta el balon respecto a las lineas. En el banco limpio subio de 0.623 a 0.671.
+
+**Pero BAR-ATH no es como metrica.** Revisando solo el tracking de entrada vimos que en BAR-ATH el balon esta a 1.9 m del jugador mas cercano (mediana), contra 0.3 m en los juegos 1 y 2 de metrica, y tiembla 7 veces mas. Con eso la regla "a menos de 1 m = control" casi nunca se cumple en BAR-ATH.
+
+**El banco sucio.** Le metimos a metrica un error lento (el balon se corre ~1 m y cambia suave) y un temblor, hasta que la distancia y el temblor quedan igual que en BAR-ATH (`src/calibrar_ruido.py`). Ahi el baseline baja a 0.323, mas cerca de su 0.243 real, osea se parece mas al reto. Y descubrimos que la v1 bajaba a 0.486 y la v0 a 0.377: tenian el radio mal puesto para BAR-ATH.
+
+**La v2.** Radio de control 2.5 m y 18 frames (elegidos en el banco sucio), señales de toques y lugar, entrenada con metrica limpio + sucio juntos (aguanta los dos casos), costos del viterbi elegidos en el banco sucio. Fuera de muestra: **0.547 en el banco sucio** (v1 0.486, baseline 0.323) y 0.612 en el limpio. Reproducible byte por byte.
+
+## 10. Que sigue (por impacto)
 
 1. leer la posesion en la forma de los equipos cuando no hay balon (el que ataca se abre y avanza)
 2. balon del video + filtro del mecatronico en los huecos
@@ -107,7 +119,7 @@ Fuera de muestra: **0.623** promedio (histeresis 0.589, baseline 0.383). Sin la 
 
 Cada cosa entra a la entrega **solo si sube en el banco**.
 
-## 10. Lo que vamos a necesitar para el documento tecnico
+## 11. Lo que vamos a necesitar para el documento tecnico
 
 - enfoque y por que (secciones 1, 3, 4)
 - assets usados y descartados: tracking si, homografia si (para el video), video tactico si (detector), broadcast no por ahora, smart tagging pendiente

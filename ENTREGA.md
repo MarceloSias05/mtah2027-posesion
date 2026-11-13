@@ -1,62 +1,52 @@
-# Checklist de entrega (deadline 17 nov)
+# Estado de la entrega (deadline 17 nov)
 
-Todo lo que hay que hacer para entregar, en orden. Marquen con [x] conforme avancen.
+## Lo que ya tenemos
 
-## 1. Nombre y archivos (analista)
+**Archivo de posesion.** `src/generar_v2.py` genera `outputs/v2_segmentos.csv` (la v2 es la recomendada, ver bitacora 09). Pasa el validador oficial (199,319 filas, frames 0..199318, solo H/A/D/X). Sale identico byte por byte en cada corrida, md5 `5d3822b7e56bb6b604da90cd208bee40`. Las versiones anteriores (v0, v1) siguen en el repo como respaldo.
 
-- [ ] confirmar el nombre EXACTO del equipo como lo pusimos todos en el registro
-- [ ] el csv se llama `<nombre_equipo>.csv` y el documento `<nombre_equipo>.pdf` (el scorer usa el nombre del archivo para la tabla)
-- [ ] todos tenemos cuenta de Google para el form (solo una respuesta por equipo, se puede editar, cuenta la ultima)
+**Repo reproducible.** `bash reproducir.sh <nombre_equipo>` hace todo desde cero en ~5 min (genera la v2): entorno con versiones fijas (`requirements-nuestro.txt`), baja los partidos de Metrica en un commit fijo, entrena, genera el csv y lo valida. Probado en una copia limpia, mismo md5.
 
-## 2. Documento tecnico (analista + Memo)
+**Repo limpio para publicar.** El `.gitignore` deja fuera `data/`, `outputs/`, `models/`, `data_externa/` y los entornos de python. La data del reto, los videos, el csv del detector de balon y las entregas no se suben.
 
-El borrador esta en `docs/technical_document.md`, ya en ingles y con todas las secciones que piden.
-- [ ] poner nombre del equipo, integrantes y URL del repo arriba
-- [ ] el analista llena la parte de la seccion 8 que dice `<analyst: ...>` (porteros, balones aereos, saques de banda)
-- [ ] si cambiamos de version (v2), actualizar secciones 3, 4 y 5
-- [ ] exportar a PDF (o mandarlo como .md, tambien lo aceptan)
+**Documento tecnico en ingles.** `docs/technical_document.md`, con todas las secciones que piden en SUBMISSION.md: enfoque y por que, assets usados y descartados, datos de entrenamiento, manejo del tracking con huecos, reglas de posesion, limitaciones, reproduccion, uso de IA.
 
-## 3. Repo publico (Memo)
+**Documentacion interna.** `README.md`, `docs/COMO_FUNCIONA.md` y la bitacora por fases en `docs/bitacora/`.
 
-```bash
-cd ~/Developer/mtah2027-posesion
-git status                      # NO debe aparecer nada de data/, outputs/, models/, data_externa/
-gh repo create <nombre-repo> --public --source=. --push
-```
-(o crear el repo vacio en github.com y `git remote add origin ...` + `git push -u origin main`)
+## Lo que falta
 
-- [ ] revisar en la pagina de github que NO esten: videos, `*_atd.txt`, homografias, smart tagging, `ball_video.csv`, ninguna entrega csv
-- [ ] SI pueden estar: `evaluation/gt/` (es el GT publico de 5 min, viene en el repo oficial con licencia MIT)
-- [ ] poner la URL en el documento tecnico
+**En el documento tecnico:**
+- nombre del equipo e integrantes al inicio
+- URL del repo publico
+- la parte de la seccion 8 marcada `<analyst: ...>`: como tratamos atajadas del portero, balones aereos y saques de banda
+- el documento ya describe la v2; si al final se entrega otra version, actualizar secciones 3, 4 y 5
+- exportarlo a PDF (o subirlo como .md, tambien lo aceptan)
 
-## 4. Probar que se reproduce (alguien que NO sea Memo, en su compu)
+**Del repo:**
+- publicarlo en GitHub
+- revisar en la pagina que no se haya subido nada de data (videos, `*_atd.txt`, homografias, smart tagging, csv de balon o de entregas). `evaluation/gt/` si puede estar, es el GT publico del repo oficial con licencia MIT
+- que alguien lo clone en otra compu, ponga la data en `data/tactical/`, corra `bash reproducir.sh prueba` y confirme el md5 `5d3822b7e56bb6b604da90cd208bee40`
 
-```bash
-git clone <url del repo> && cd <repo>
-# copiar la data del drive a data/tactical/ con los nombres originales
-bash reproducir.sh prueba
-```
-- [ ] tiene que terminar con "Valid" y el md5 `bf458c4d098e0c0cc823bae755b03b5d` (si es la v1)
-- [ ] si el md5 sale distinto avisar ANTES de entregar
+**Antes del form:**
+- confirmar el nombre exacto del equipo como esta en el registro
+- generar el archivo final con ese nombre: `bash reproducir.sh <nombre_equipo>`
+- validar ese mismo archivo justo antes de subirlo
+- tener cuenta de Google para el form (una respuesta por equipo, se puede editar, cuenta la ultima)
 
-## 5. Generar el archivo final y validarlo
+**Correo a los organizadores** con tres dudas (borrador abajo). Conviene mandarlo pronto porque las respuestas tardan.
 
-```bash
-bash reproducir.sh <nombre_equipo>
-python evaluation/validate_submission.py outputs/<nombre_equipo>.csv
-```
-- [ ] validar EXACTAMENTE el archivo que se va a subir, no uno viejo
+## Lo que se sube al form
 
-## 6. Correo a los organizadores (analista, cuanto antes)
+| campo | que va |
+|---|---|
+| Team Name | el del registro |
+| Possession file | `<nombre_equipo>.csv` |
+| Public code repository URL | la del repo en GitHub |
+| Short technical document | `<nombre_equipo>.pdf` (o .md) |
 
-Borrador en ingles abajo. Mandarlo hoy, las respuestas tardan.
+## Lo que nos gustaria tener si da el tiempo
 
-## 7. Form
-
-- [ ] Team Name
-- [ ] Possession file: `<nombre_equipo>.csv`
-- [ ] Public code repository URL
-- [ ] Short technical document: `<nombre_equipo>.pdf`
+- respuesta de los organizadores sobre archivos intermedios, por si la version final usa el balon detectado en el video
+- la seccion de reglas de posesion revisada contra el video por alguien que sepa de futbol
 
 ---
 
@@ -75,4 +65,4 @@ Borrador en ingles abajo. Mandarlo hoy, las respuestas tardan.
 > 3. Self-training. Would pseudo-labels generated automatically from the provided tracking (no ground truth, no video, no human labels) count as "training on the provided game"? We are not using this now and want to know before considering it.
 >
 > Thank you,
-> <name>, team <team name>
+> <team name>

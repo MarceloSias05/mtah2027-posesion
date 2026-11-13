@@ -91,10 +91,10 @@ def viterbi(logp, c_switch, c_dead):
     return np.array(['H', 'A', 'D'])[path]
 
 
-def features_con_histeresis(G):
+def features_con_histeresis(G, r=1.0, k=8):
     """señales + la salida de la regla de histeresis (one-hot H/A/D) como 3 columnas extra"""
     import histeresis as hyst
-    h = hyst.hysteresis(G, 1.0, 8, 25)
+    h = hyst.hysteresis(G, r, k, 25)
     oh = np.stack([h == 'H', h == 'A', h == 'D'], 1).astype(np.float32)
     return np.hstack([features(G['Ph'], G['Pa'], G['B']), oh])
 
@@ -141,3 +141,90 @@ def mirror_v2(X, y):
     S = X[:, nb:nb + 10]; Sm = S[:, [1, 0, 3, 2, 5, 4, 7, 6, 9, 8]]
     O = X[:, nb + 10:]; Om = O[:, [1, 0, 2]]
     return np.hstack([Xb, np.vstack([S, Sm]), np.vstack([O, Om])]), yb
+
+
+def _since(mask):
+    """frames desde la ultima vez que mask fue True (hacia atras) y hasta la proxima (hacia adelante)"""
+    n = len(mask); idx = np.arange(n)
+    last = np.where(mask, idx, -10**6); last = np.maximum.accumulate(last)
+    nxt = np.where(mask, idx, 10**7); nxt = np.minimum.accumulate(nxt[::-1])[::-1]
+    return np.minimum(idx - last, 3000), np.minimum(nxt - idx, 3000)
+
+
+def touch_features(Ph, Pa, B, r=1.0):
+    """tiempo desde el ultimo control y hasta el proximo de cada equipo, y patadas (cambios bruscos
+    de velocidad del balon). columnas en pares (home, away) salvo las ultimas 2"""
+    miss = np.isnan(B[:, 0])
+    dh = np.nanmin(np.hypot(Ph[..., 0] - B[:, None, 0], Ph[..., 1] - B[:, None, 1]), 1)
+    da = np.nanmin(np.hypot(Pa[..., 0] - B[:, None, 0], Pa[..., 1] - B[:, None, 1]), 1)
+    ch = (~miss) & (dh < r); ca = (~miss) & (da < r)
+    bh, fh = _since(ch); ba, fa = _since(ca)
+    v = np.r_[0, np.hypot(*np.diff(B, axis=0).T)] * 25
+    acc = np.abs(np.r_[0, np.diff(np.nan_to_num(v))]); acc = np.where(miss, 0, np.minimum(acc, 30))
+    kick = pd.Series(acc).rolling(13, center=True, min_periods=1).max().values
+    lg = lambda x: np.log1p(x.astype(np.float32))
+    X = np.stack([lg(bh), lg(ba), lg(fh), lg(fa), lg(bh) - lg(ba), lg(fh) - lg(fa), acc, kick], 1)
+    return X.astype(np.float32)
+
+
+def features_v3(G, r=1.0, k=8):
+    """[señales base | toques | histeresis one-hot]"""
+    import histeresis as hyst
+    h = hyst.hysteresis(G, r, k, 25)
+    oh = np.stack([h == 'H', h == 'A', h == 'D'], 1).astype(np.float32)
+    return np.hstack([features(G['Ph'], G['Pa'], G['B']), touch_features(G['Ph'], G['Pa'], G['B'], r), oh])
+
+
+def mirror_v3(X, y):
+    nb = X.shape[1] - 3 - 8
+    Xb, yb = mirror(X[:, :nb], y)
+    T = X[:, nb:nb + 8]; Tm = T[:, [1, 0, 3, 2, 4, 5, 6, 7]].copy(); Tm[:, 4] = -T[:, 4]; Tm[:, 5] = -T[:, 5]
+    O = X[:, nb + 8:]; Om = O[:, [1, 0, 2]]
+    return np.hstack([Xb, np.vstack([T, Tm]), np.vstack([O, Om])]), yb
+
+
+def place_features(B):
+    """donde esta el balon respecto a las lineas, y en que parte del hueco sin balon va el frame.
+    no dependen de que equipo es (no se voltean)"""
+    miss = np.isnan(B[:, 0])
+    # ultima posicion conocida del balon (para los frames sin balon)
+    lastB = pd.DataFrame(B).ffill().bfill().values
+    dside = np.minimum(lastB[:, 1], W - lastB[:, 1])
+    dgoal = np.minimum(lastB[:, 0], L - lastB[:, 0])
+    seen = ~miss
+    bs, fs = _since(seen)
+    lg = lambda x: np.log1p(np.maximum(x, 0).astype(np.float32))
+    return np.stack([np.clip(dside, -5, 40), np.clip(dgoal, -5, 60), lg(bs), lg(fs)], 1).astype(np.float32)
+
+
+def features_v4(G, r=1.0, k=8):
+    return np.hstack([features_v3(G, r, k), place_features(G['B'])])
+
+
+def mirror_v4(X, y):
+    A = X[:, -4:]
+    Xm, ym = mirror_v3(X[:, :-4], y)
+    return np.hstack([Xm, np.vstack([A, A])]), ym
+
+
+def ensuciar_balon(B, s_lento, s_temblor, seed=0):
+    """le mete al balon dos tipos de error: uno lento (corrido unos metros, cambia en ~1 s) y uno
+    rapido (temblor frame a frame). sirve para que metrica se parezca al tracking automatico."""
+    rng = np.random.default_rng(seed)
+    n = len(B)
+    lento = rng.normal(0, 1, (n + 50, 2))
+    for _ in range(4):   # 4 pasadas de promedio = curva suave, sin brincos frame a frame
+        lento = pd.DataFrame(lento).rolling(50, center=True, min_periods=1).mean().values
+    lento = lento[25:n + 25]
+    lento = lento / lento.std(0) * s_lento
+    return B + lento + rng.normal(0, s_temblor, (n, 2))
+
+
+def stats_balon(Ph, Pa, B):
+    """mediana de distancia balon-jugador mas cercano y mediana del 'temblor' (acc por frame)"""
+    m = ~np.isnan(B[:, 0])
+    dh = np.nanmin(np.hypot(Ph[..., 0] - B[:, None, 0], Ph[..., 1] - B[:, None, 1]), 1)
+    da = np.nanmin(np.hypot(Pa[..., 0] - B[:, None, 0], Pa[..., 1] - B[:, None, 1]), 1)
+    v = np.r_[0, np.hypot(*np.diff(B, axis=0).T)] * 25
+    acc = np.abs(np.r_[0, np.diff(v)])
+    return float(np.nanmedian(np.fmin(dh, da)[m])), float(np.nanmedian(acc))
