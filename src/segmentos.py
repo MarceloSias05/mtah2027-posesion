@@ -103,3 +103,41 @@ def mirror_full(X, y):
     nf = X.shape[1] - 3
     Xb, yb = mirror(X[:, :nf], y)
     return np.hstack([Xb, np.vstack([X[:, nf:], X[:, nf:][:, [1, 0, 2]]])]), yb
+
+
+def shape_features(Ph, Pa):
+    """forma de los equipos, sin balon. el que ataca se abre, se estira y avanza.
+    la direccion de ataque se saca sola: en una ventana larga (2 min) el equipo con el
+    centroide mas a la izquierda ataca hacia la derecha (cambia sola en el medio tiempo).
+    columnas en pares (home, away) para poder voltearlas"""
+    def stats(P):
+        cx = np.nanmean(P[..., 0], 1); cy = np.nanmean(P[..., 1], 1)
+        return cx, np.nanstd(P[..., 1], 1), np.nanstd(P[..., 0], 1)
+    cxh, wh, lh = stats(Ph); cxa, wa, la = stats(Pa)
+    long_ = lambda x: pd.Series(x).rolling(3000, center=True, min_periods=250).mean().values
+    dirh = np.sign(long_(cxa) - long_(cxh)); dirh = np.where(np.isnan(dirh) | (dirh == 0), 1, dirh)
+    advh = (cxh - long_(cxh)) * dirh            # que tan adelantado va home vs su posicion normal
+    adva = (cxa - long_(cxa)) * -dirh
+    vh = pd.Series(np.r_[0, np.diff(cxh)] * 25 * dirh).rolling(25, center=True, min_periods=1).mean().values
+    va = pd.Series(np.r_[0, np.diff(cxa)] * 25 * -dirh).rolling(25, center=True, min_periods=1).mean().values
+    sm = lambda x: pd.Series(x).rolling(25, center=True, min_periods=1).mean().values
+    cols = [sm(advh), sm(adva), sm(wh), sm(wa), sm(lh), sm(la), vh, va,
+            sm(wh * lh), sm(wa * la)]
+    X = np.stack(cols, 1).astype(np.float32)
+    return np.nan_to_num(X)
+
+
+def features_v2(G):
+    """[señales base | forma de equipos | histeresis one-hot]"""
+    import histeresis as hyst
+    h = hyst.hysteresis(G, 1.0, 8, 25)
+    oh = np.stack([h == 'H', h == 'A', h == 'D'], 1).astype(np.float32)
+    return np.hstack([features(G['Ph'], G['Pa'], G['B']), shape_features(G['Ph'], G['Pa']), oh])
+
+
+def mirror_v2(X, y):
+    nb = X.shape[1] - 3 - 10
+    Xb, yb = mirror(X[:, :nb], y)
+    S = X[:, nb:nb + 10]; Sm = S[:, [1, 0, 3, 2, 5, 4, 7, 6, 9, 8]]
+    O = X[:, nb + 10:]; Om = O[:, [1, 0, 2]]
+    return np.hstack([Xb, np.vstack([S, Sm]), np.vstack([O, Om])]), yb

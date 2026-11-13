@@ -9,6 +9,7 @@ lo que fuimos haciendo en orden. cada quien escribe su parte con sus palabras: q
 - [04 banco de metrica y v0](04_banco_metrica_y_v0.md) - el banco de pruebas, la regla de histeresis, primera entrega
 - [05 tercer partido](05_tercer_partido.md) - juego 3 al banco, prueba cruzada de 3 vias, que tan robusta es la regla con ruido
 - [06 modelo de segmentos](06_modelo_segmentos.md) - clasificador + viterbi, entrega v1
+- [07 lo que no funciono](07_lo_que_no_funciono.md) - forma de equipos y afinar el viterbi, descartados
 - [pendientes](pendientes.md)
 
 el resumen ordenado por tema esta en [../COMO_FUNCIONA.md](../COMO_FUNCIONA.md)
