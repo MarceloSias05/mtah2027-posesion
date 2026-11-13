@@ -27,7 +27,7 @@ Y no hay leaderboard. Entonces **no tenemos forma de saber si algo mejora** a me
 
 ## 3. El banco de pruebas con Metrica (`src/banco_metrica.py`)
 
-Metrica publica 3 partidos de muestra en github (`metrica-sports/sample-data`). Los juegos 1 y 2 traen tracking de jugadores y balon + eventos (pases, recuperaciones, balones fuera, faltas, set pieces).
+Metrica publica 3 partidos de muestra en github (`metrica-sports/sample-data`). Los 3 traen tracking de jugadores y balon + eventos (pases, recuperaciones, balones fuera, faltas, set pieces). El juego 3 viene en EPTS, el mismo formato del reto.
 
 Con los eventos armamos un GT de posesion igual de formato que el del reto:
 - el equipo que tiene la pelota = el equipo del ultimo pase / recuperacion / set piece / tiro / balon perdido
@@ -48,14 +48,17 @@ Y lo calificamos con `evaluation/possession_metrics.py`, el mismo codigo del ret
 2. el dueño se mantiene hasta que **el otro equipo controle k frames seguidos**. un rival que pasa cerca un instante no cambia nada
 3. si el balon falta en el tracking mas de **dgap** frames seguidos, es D (el tracking pierde el balon casi siempre en balon muerto, ver seccion 5)
 
-**De donde salen los numeros:** `src/calibrar_histeresis.py` prueba combinaciones de r, k y dgap **solo en Metrica** y hace prueba cruzada: calibra con el juego 1 y prueba en el juego 2, y al reves. Si una combinacion solo sirviera por casualidad para un partido, ahi se veria.
+**De donde salen los numeros:** `src/calibrar_histeresis.py` prueba combinaciones de r, k y dgap **solo en Metrica** y hace prueba cruzada: calibra en 2 partidos y prueba en el que queda fuera, los 3 turnos. Si una combinacion solo sirviera por casualidad para un partido, ahi se veria.
 
 | calibro en | pruebo en | histeresis | baseline |
 |---|---|---|---|
-| juego 1 | juego 2 | 0.548 | 0.390 |
-| juego 2 | juego 1 | 0.588 | 0.402 |
+| 2, 3 | 1 | 0.620 | 0.402 |
+| 1, 3 | 2 | 0.558 | 0.390 |
+| 1, 2 | 3 | 0.590 | 0.357 |
 
-Final: r = 1.0 m, k = 8 frames (un tercio de segundo), dgap = 25 frames (1 segundo). spellF1 promedio 0.598 contra 0.396 del baseline.
+Promedio fuera de muestra 0.589 contra 0.383 del baseline.
+
+Final: r = 1.0 m, k = 8 frames (un tercio de segundo), dgap = 25 frames (1 segundo). El 0.75m saca un poquito mas en datos limpios pero aguanta peor si el tracking trae ruido, por eso nos quedamos con 1.0 (detalle en bitacora 05).
 
 Tiene sentido futbolero: 1 metro es "lo tiene en el pie", y un tercio de segundo es lo minimo para que un robo sea robo y no un roce.
 
@@ -90,11 +93,10 @@ No la calificamos contra los 5 min publicos (no queremos tentarnos a ajustar con
 
 ## 8. Que sigue (por impacto)
 
-1. meter el juego 3 de Metrica al banco (viene en el mismo formato EPTS que el reto)
-2. modelo de segmentos en vez de la regla a mano: que elija la secuencia completa de posesiones mas creible usando cuanto suelen durar
-3. leer la posesion en la forma de los equipos cuando no hay balon (el que ataca se abre y avanza)
-4. balon del video + filtro del mecatronico en los huecos
-5. bordes del balon muerto con balon fuera de la cancha y Smart Tagging
+1. modelo de segmentos en vez de la regla a mano: que elija la secuencia completa de posesiones mas creible usando cuanto suelen durar
+2. leer la posesion en la forma de los equipos cuando no hay balon (el que ataca se abre y avanza)
+3. balon del video + filtro del mecatronico en los huecos
+4. bordes del balon muerto con balon fuera de la cancha y Smart Tagging
 
 Cada cosa entra a la entrega **solo si sube en el banco**.
 
@@ -104,6 +106,6 @@ Cada cosa entra a la entrega **solo si sube en el banco**.
 - assets usados y descartados: tracking si, homografia si (para el video), video tactico si (detector), broadcast no por ahora, smart tagging pendiente
 - datos de entrenamiento: ninguno etiquetado de este partido. Metrica sample data (publico, eventos hechos por Metrica) para calibrar; detector de roboflow entrenado con DFL Bundesliga (no lo entrenamos nosotros)
 - reglas de posesion: seccion 4 + lo que escriba el analista
-- limitaciones: GT del banco viene de eventos, solo 2-3 partidos para calibrar, el detector confunde objetos fijos
+- limitaciones: GT del banco viene de eventos, solo 3 partidos para calibrar, el detector confunde objetos fijos
 - como reproducir: README
 - uso de IA: usamos Claude como asistente de desarrollo, la data se subio bajo la aclaracion del 11 nov que lo permite

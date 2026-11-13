@@ -10,7 +10,7 @@ import metrica_datos as md
 
 def gt_labels(e,n,dead,valid):
     lab=np.full(n,'X',dtype='<U1')
-    keep=e[e.Type.isin(['PASS','RECOVERY','SET PIECE','SHOT','BALL LOST','BALL OUT'])].sort_values('Start Frame')
+    keep=e[e.Type.isin(['PASS','CARRY','RECOVERY','SET PIECE','SHOT','BALL LOST','BALL OUT'])].sort_values('Start Frame')
     cur=None; idx=0; ev=keep[['Start Frame','Team']].values
     team=np.full(n,'',dtype=object)
     j=0
@@ -28,18 +28,26 @@ def score(gt,pred):
     s=pm.spell_scores(g,filled,runs)
     return s['mean_f1'], pm.macro_f1(cm), s['n_gt'], s['n_pred']
 
-def games():
-    for g in (1,2):
+def _pack(g,n,Ph,Pa,B,e):
+    P=np.concatenate([Ph,Pa],1)
+    sp=np.nanmean(np.hypot(*np.moveaxis(np.diff(P,axis=0),2,0)),1)*25
+    sp=pd.Series(np.r_[np.nan,sp]).rolling(25,center=True,min_periods=5).median().values
+    valid=~np.isnan(sp)
+    dead=md.dead_mask(e,n,None)
+    return dict(g=g,n=n,Ph=Ph,Pa=Pa,B=B,sp=sp,valid=valid,dead=dead,gt=gt_labels(e,n,dead,valid),e=e)
+
+def games(which=(1,2,3)):
+    """los partidos de muestra de metrica listos para el banco. todo en metros."""
+    for g in which:
+        if g==3:
+            Ph,Pa,B,e,frames,_=md.load_game3(); n=len(B)
+            assert (frames==np.arange(1,n+1)).all()
+            yield _pack(3,n,Ph*[L,W],Pa*[L,W],B*[L,W],e); continue
         h,a,e=md.load(g); n=len(h)
         Ph=h[[c for c in h.columns if c.startswith('Player')]].values.reshape(n,-1,2)*[L,W]
         Pa=a[[c for c in a.columns if c.startswith('Player')]].values.reshape(n,-1,2)*[L,W]
         B=h[['Ball_x','Ball_y']].values*[L,W]
-        P=np.concatenate([Ph,Pa],1)
-        sp=np.nanmean(np.hypot(*np.moveaxis(np.diff(P,axis=0),2,0)),1)*25
-        sp=pd.Series(np.r_[np.nan,sp]).rolling(25,center=True,min_periods=5).median().values
-        valid=~np.isnan(sp)
-        dead=md.dead_mask(e,n,None)
-        yield dict(g=g,n=n,Ph=Ph,Pa=Pa,B=B,sp=sp,valid=valid,dead=dead,gt=gt_labels(e,n,dead,valid),e=e)
+        yield _pack(g,n,Ph,Pa,B,e)
 
 def nearest(G):
     dh=np.nanmin(np.hypot(*np.moveaxis(G['Ph']-G['B'][:,None],2,0)),1)

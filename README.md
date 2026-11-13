@@ -8,7 +8,7 @@ La base (`games.py`, `evaluation/`, `starter/`) es del repo oficial de los organ
 
 ## La idea en corto
 
-1. **No podemos tunear con este partido** (reglas). Entonces armamos un banco de pruebas con los 2 partidos publicos de Metrica, con posesion sacada de sus eventos y calificado con el mismo scorer del reto. Todo numero del codigo se calibra ahi.
+1. **No podemos tunear con este partido** (reglas). Entonces armamos un banco de pruebas con los 3 partidos publicos de Metrica, con posesion sacada de sus eventos y calificado con el mismo scorer del reto. Todo numero del codigo se calibra ahi.
 2. **El baseline parte posesiones de mas** porque cambia de dueño cada que un rival queda mas cerca del balon aunque sea un frame. Nuestra regla de histeresis solo cambia de dueño cuando el otro equipo de verdad controla el balon un rato.
 3. **El tracking pierde el balon en 41% de los frames**, sobretodo en balon muerto. Para los huecos corrimos un detector de balon sobre el video (modelo publico entrenado con otros partidos).
 
@@ -16,12 +16,12 @@ Explicacion completa con el por que de cada cosa: **[docs/COMO_FUNCIONA.md](docs
 
 ## Resultados hasta ahora (banco de Metrica, spellF1)
 
-| metodo | juego 1 | juego 2 | promedio |
-|---|---|---|---|
-| baseline oficial (ventana 50) | 0.402 | 0.390 | 0.396 |
-| histeresis r=1.0m k=8 dgap=25 | ~0.59 | ~0.60 | **0.598** |
+| metodo | juego 1 | juego 2 | juego 3 | promedio |
+|---|---|---|---|---|
+| baseline oficial (ventana 50) | 0.402 | 0.390 | 0.357 | 0.383 |
+| histeresis, fuera de muestra* | 0.620 | 0.558 | 0.590 | **0.589** |
 
-Prueba cruzada (calibrar en un juego, probar en el otro): 0.548 y 0.588. No sabemos el numero en BAR-ATH, no hay leaderboard.
+\* calibrada en los otros 2 partidos y probada en el que queda. Parametros finales: r=1.0m, k=8, dgap=25 (ver bitacora 05 por que no el 0.75). No sabemos el numero en BAR-ATH, no hay leaderboard.
 
 ## Como correr todo
 
