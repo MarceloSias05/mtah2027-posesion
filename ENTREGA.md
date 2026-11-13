@@ -2,9 +2,9 @@
 
 ## Lo que ya tenemos
 
-**Archivo de posesion.** `src/generar_v2.py` genera `outputs/v2_segmentos.csv` (la v2 es la recomendada, ver bitacora 09). Pasa el validador oficial (199,319 filas, frames 0..199318, solo H/A/D/X). Sale identico byte por byte en cada corrida, md5 `5d3822b7e56bb6b604da90cd208bee40`. Las versiones anteriores (v0, v1) siguen en el repo como respaldo.
+**Archivo de posesion.** `src/generar_v3.py` genera `outputs/v3_segmentos.csv` (la v3 es la recomendada, ver bitacora 10). Pasa el validador oficial (199,319 filas, frames 0..199318, solo H/A/D/X). Sale identico byte por byte en cada corrida, md5 `6cb2046fe5924ae3878a475281a68c23`. Las versiones anteriores (v0, v1, v2) siguen en el repo como respaldo.
 
-**Repo reproducible.** `bash reproducir.sh <nombre_equipo>` hace todo desde cero en ~5 min (genera la v2): entorno con versiones fijas (`requirements-nuestro.txt`), baja los partidos de Metrica en un commit fijo, entrena, genera el csv y lo valida. Probado en una copia limpia, mismo md5.
+**Repo reproducible.** `bash reproducir.sh <nombre_equipo>` hace todo desde cero en ~5 min (genera la v3): entorno con versiones fijas (`requirements-nuestro.txt`), baja los partidos de Metrica en un commit fijo, entrena, genera el csv y lo valida. Probado en una copia limpia, mismo md5.
 
 **Repo limpio para publicar.** El `.gitignore` deja fuera `data/`, `outputs/`, `models/`, `data_externa/` y los entornos de python. La data del reto, los videos, el csv del detector de balon y las entregas no se suben.
 
@@ -18,13 +18,13 @@
 - nombre del equipo e integrantes al inicio
 - URL del repo publico
 - la parte de la seccion 8 marcada `<analyst: ...>`: como tratamos atajadas del portero, balones aereos y saques de banda
-- el documento ya describe la v2; si al final se entrega otra version, actualizar secciones 3, 4 y 5
+- el documento ya describe la v3; si al final se entrega otra version, actualizar secciones 3, 4 y 5
 - exportarlo a PDF (o subirlo como .md, tambien lo aceptan)
 
 **Del repo:**
 - publicarlo en GitHub
 - revisar en la pagina que no se haya subido nada de data (videos, `*_atd.txt`, homografias, smart tagging, csv de balon o de entregas). `evaluation/gt/` si puede estar, es el GT publico del repo oficial con licencia MIT
-- que alguien lo clone en otra compu, ponga la data en `data/tactical/`, corra `bash reproducir.sh prueba` y confirme el md5 `5d3822b7e56bb6b604da90cd208bee40`
+- que alguien lo clone en otra compu, ponga la data en `data/tactical/`, corra `bash reproducir.sh prueba` y confirme el md5 `6cb2046fe5924ae3878a475281a68c23`
 
 **Antes del form:**
 - confirmar el nombre exacto del equipo como esta en el registro

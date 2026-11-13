@@ -11,7 +11,8 @@ lo que fuimos haciendo en orden. cada quien escribe su parte con sus palabras: q
 - [06 modelo de segmentos](06_modelo_segmentos.md) - clasificador + viterbi, entrega v1
 - [07 lo que no funciono](07_lo_que_no_funciono.md) - forma de equipos y afinar el viterbi, descartados
 - [08 toques](08_toques.md) - tiempo desde/hasta el ultimo toque y posicion del balon, 0.623 -> 0.671 en el banco limpio
-- [09 banco sucio y v2](09_banco_sucio_y_v2.md) - BAR-ATH tiene el balon mas lejos y ruidoso, ensuciamos metrica, v2 (ENTREGA RECOMENDADA)
+- [09 banco sucio y v2](09_banco_sucio_y_v2.md) - BAR-ATH tiene el balon mas lejos y ruidoso, ensuciamos metrica, v2
+- [10 v3 ruido desconocido](10_v3_ruido_desconocido.md) - entrenar con varios tipos de ruido y costos que aguantan lo desconocido (ENTREGA RECOMENDADA)
 - [pendientes](pendientes.md)
 
 el resumen ordenado por tema esta en [../COMO_FUNCIONA.md](../COMO_FUNCIONA.md)

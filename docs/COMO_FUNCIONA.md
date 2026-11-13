@@ -1,6 +1,6 @@
 # Como funciona y por que lo hicimos asi
 
-> entrega actual: **v2** (seccion 9). las secciones 7 y 8 describen versiones anteriores que siguen en el repo.
+> entrega actual: **v3** (seccion 10). las secciones 7, 8 y 9 describen versiones anteriores que siguen en el repo.
 
 Esto es la explicacion completa para el equipo (y la base del documento tecnico, que va en ingles). La bitacora tiene el orden en que fuimos descubriendo las cosas, aqui esta ordenado por tema.
 
@@ -101,7 +101,7 @@ Señales por frame: si falta el balon y que tan largo es el hueco, distancia del
 
 Fuera de muestra: **0.623** promedio (histeresis 0.589, baseline 0.383). Sin la histeresis como señal salio peor (0.569), y sin el viterbi el clasificador solo saca ~0.3: el viterbi es la pieza clave. Costos elegidos con prueba cruzada en Metrica (cambio 8, balon muerto 20). Sale identico byte por byte en cada corrida con las versiones de `requirements-nuestro.txt`.
 
-## 9. Toques, el banco sucio y la v2 (`src/generar_v2.py`) - entrega actual
+## 9. Toques, el banco sucio y la v2 (`src/generar_v2.py`)
 
 **Señales de toques.** Cuanto tiempo paso desde que cada equipo controlo el balon y cuanto falta para que lo vuelva a controlar, mas donde esta el balon respecto a las lineas. En el banco limpio subio de 0.623 a 0.671.
 
@@ -111,7 +111,15 @@ Fuera de muestra: **0.623** promedio (histeresis 0.589, baseline 0.383). Sin la 
 
 **La v2.** Radio de control 2.5 m y 18 frames (elegidos en el banco sucio), señales de toques y lugar, entrenada con metrica limpio + sucio juntos (aguanta los dos casos), costos del viterbi elegidos en el banco sucio. Fuera de muestra: **0.547 en el banco sucio** (v1 0.486, baseline 0.323) y 0.612 en el limpio. Reproducible byte por byte.
 
-## 10. Que sigue (por impacto)
+## 10. La v3: aguantar un ruido que no conocemos (`src/generar_v3.py`) - entrega actual
+
+La v2 aprendio un solo tipo de error (balon corrido suave + temblor). Pero no sabemos que forma tiene el error real de BAR-ATH. Entonces armamos mas tipos: **saltos** (el tracker se confunde de objeto unos segundos) y **huecos** extra en juego vivo. Y un ruido de prueba mas fuerte y mezclado con el que nadie entrena, para ver quien aguanta lo desconocido.
+
+Lo que salio: los costos de cambio que traia la v2 (18/12) eran los que peor aguantaban el ruido de prueba (0.387). Con costos mas altos (25/40) y entrenando con los 3 tipos de ruido sube a **0.441**, perdiendo poquito en el sucio conocido (0.529 vs 0.534) y algo en el limpio (0.587 vs 0.611). Como BAR-ATH no es limpio y no conocemos su error exacto, elegimos la que tiene el mejor peor caso.
+
+Tambien probamos y descartamos: suavizar el balon antes (empeora, borra patadas), duracion minima de posesion (no aporta), promediar v2 con v3 (queda en medio). Detalle en bitacora 10.
+
+## 11. Que sigue (por impacto)
 
 1. leer la posesion en la forma de los equipos cuando no hay balon (el que ataca se abre y avanza)
 2. balon del video + filtro del mecatronico en los huecos
@@ -119,7 +127,7 @@ Fuera de muestra: **0.623** promedio (histeresis 0.589, baseline 0.383). Sin la 
 
 Cada cosa entra a la entrega **solo si sube en el banco**.
 
-## 11. Lo que vamos a necesitar para el documento tecnico
+## 12. Lo que vamos a necesitar para el documento tecnico
 
 - enfoque y por que (secciones 1, 3, 4)
 - assets usados y descartados: tracking si, homografia si (para el video), video tactico si (detector), broadcast no por ahora, smart tagging pendiente

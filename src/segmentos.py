@@ -228,3 +228,48 @@ def stats_balon(Ph, Pa, B):
     v = np.r_[0, np.hypot(*np.diff(B, axis=0).T)] * 25
     acc = np.abs(np.r_[0, np.diff(v)])
     return float(np.nanmedian(np.fmin(dh, da)[m])), float(np.nanmedian(acc))
+
+
+def saltos_balon(B, tasa, tam, seed=0):
+    """el tracker se confunde de objeto: tramos de 0.5-2 s donde el balon aparece corrido tam metros"""
+    rng = np.random.default_rng(seed); B = B.copy(); n = len(B)
+    t = 0
+    while True:
+        t += int(rng.exponential(1 / tasa))
+        if t >= n: break
+        d = int(rng.integers(12, 50)); off = rng.normal(0, tam, 2)
+        B[t:t + d] += off; t += d
+    return B
+
+
+def huecos_balon(B, tasa, seed=0):
+    """el tracker pierde el balon en juego vivo: huecos extra de 0.5-3 s donde si se veia"""
+    rng = np.random.default_rng(seed); B = B.copy(); n = len(B)
+    t = 0
+    while True:
+        t += int(rng.exponential(1 / tasa))
+        if t >= n: break
+        d = int(rng.integers(12, 75)); B[t:t + d] = np.nan; t += d
+    return B
+
+
+def ruido(B, spec, seed=0):
+    """spec: dict con 'lento','temblor' (ensuciar_balon), 'saltos'=(tasa,tam), 'huecos'=tasa"""
+    if spec.get('lento') is not None:
+        B = ensuciar_balon(B, spec['lento'], spec.get('temblor', 0.0), seed)
+    if spec.get('saltos'):
+        B = saltos_balon(B, *spec['saltos'], seed=seed + 100)
+    if spec.get('huecos'):
+        B = huecos_balon(B, spec['huecos'], seed=seed + 200)
+    return B
+
+
+def suavizar_balon(B, w):
+    """mediana movil centrada de +/- w frames sobre el balon visible, para quitar temblor y brincos
+    cortos. los huecos (nan) se respetan: no se inventa balon donde no hay"""
+    if w <= 0: return B
+    out = B.copy(); miss = np.isnan(B[:, 0])
+    for j in range(2):
+        s = pd.Series(B[:, j]).rolling(2 * w + 1, center=True, min_periods=1).median().values
+        out[:, j] = np.where(miss, np.nan, s)
+    return out
