@@ -133,7 +133,7 @@ The decoder works with probabilities, so these are the behaviours it was built a
 - **Alive ball without tracking.** The model tends to call D when the ball is missing but play continues. This is where most of the remaining error is.
 - **Unused signals.** Smart Tagging and the video detections could help exactly there, but we had no external data to validate them, so we preferred not to add an untested component.
 
-With more time: external data with video, to validate the ball detector end to end, and a semi-Markov decoder with learned possession durations.
+With more time: the seven open DFL matches (Bassek et al., 2025), whose official tracking marks ball state and ball owner per frame, the same way the challenge ground truth is built; external data with video, to validate the ball detector end to end; and a semi-Markov decoder with learned possession durations.
 
 ## 10. Reproduction
 

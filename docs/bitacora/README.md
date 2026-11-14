@@ -13,6 +13,7 @@ lo que fuimos haciendo en orden. cada quien escribe su parte con sus palabras: q
 - [08 toques](08_toques.md) - tiempo desde/hasta el ultimo toque y posicion del balon, 0.623 -> 0.671 en el banco limpio
 - [09 banco sucio y v2](09_banco_sucio_y_v2.md) - BAR-ATH tiene el balon mas lejos y ruidoso, ensuciamos metrica, v2
 - [10 v3 ruido desconocido](10_v3_ruido_desconocido.md) - entrenar con varios tipos de ruido y costos que aguantan lo desconocido (ENTREGA RECOMENDADA)
+- [11 cierre](11_cierre.md) - por que nos quedamos con la v3
 - [pendientes](pendientes.md)
 
 el resumen ordenado por tema esta en [../COMO_FUNCIONA.md](../COMO_FUNCIONA.md)
