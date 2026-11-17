@@ -64,9 +64,9 @@ On this bench the official baseline ranks its four smoothing windows exactly as 
 
 **Why a degraded bench.** Comparing input statistics only (no ground truth), the BAR-ATH tracking is clearly harder than the sample data:
 
-| | median ball–nearest-player distance | median ball jitter (|Δspeed| per frame, m/s) |
+| Source | median ball–nearest-player distance | median ball jitter (absolute change of speed per frame, m/s) |
 |---|---|---|
-| Metrica G1 / G2 | 0.28 m | 0.025 |
+| Metrica G1 / G2 | 0.28 m | 0.025 / 0.026 |
 | Metrica G3 | 1.27 m | 0.017 |
 | BAR-ATH tactical ATD | 1.91 m | 0.167 |
 
