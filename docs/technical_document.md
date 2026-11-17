@@ -2,7 +2,7 @@
 
 **Frame-level ball possession for FC Barcelona vs Athletic Club**
 
-Team: Christian ([CrisWant26](https://github.com/CrisWant26)), Guillermo Lira ([2klira](https://github.com/2klira)), Diego Tamez ([datFlowers](https://github.com/datFlowers)), Antonio Flores ([Tonyfloresc](https://github.com/Tonyfloresc)), Marcelo Sias ([MarceloSias05](https://github.com/MarceloSias05))
+Team: Christian ([CrisWant26](https://github.com/CrisWant26)), Guillermo Lira ([2klira](https://github.com/2klira)), Diego Tamez ([datFlowers](https://github.com/datFlowers)), Luis Flores ([Tonyfloresc](https://github.com/Tonyfloresc)), Marcelo Sias ([MarceloSias05](https://github.com/MarceloSias05))
 Repository: https://github.com/MarceloSias05/mtah2027-posesion
 Submission file: `MexCode.csv` (regenerate with `bash reproducir.sh MexCode`)
 
