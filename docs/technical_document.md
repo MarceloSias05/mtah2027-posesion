@@ -1,10 +1,10 @@
-# <TEAM NAME> · More than a Hack 2027 · Initial Challenge
+# MexCode · More than a Hack 2027 · Initial Challenge
 
 **Frame-level ball possession for FC Barcelona vs Athletic Club**
 
-Team: <member 1>, <member 2>, <member 3>, <member 4>, <member 5>
+Team: Christian ([CrisWant26](https://github.com/CrisWant26)), Guillermo Lira ([2klira](https://github.com/2klira)), Diego Tamez ([datFlowers](https://github.com/datFlowers)), Antonio Flores ([Tonyfloresc](https://github.com/Tonyfloresc)), Marcelo Sias ([MarceloSias05](https://github.com/MarceloSias05))
 Repository: <public repo URL>
-Submission file: `<team_name>.csv` (regenerate with `bash reproducir.sh <team_name>`)
+Submission file: `MexCode.csv` (regenerate with `bash reproducir.sh MexCode`)
 
 ---
 
@@ -122,7 +122,7 @@ The decoder works with probabilities, so these are the behaviours it was built a
 - **Dead ball.** The ball is dead when it leaves the pitch lines, and when it disappears from the tracking in a context the model recognises as a stoppage (long gap, players slowing down, ball near the lines).
 - **Restarts.** After a dead ball, possession goes to the first team that controls the ball. We do not label who owns a dead ball, as the task specifies.
 
-<analyst: add how goalkeeper saves, aerial duels and throw-ins are treated after reviewing the video>
+**Goalkeeper saves, aerial balls and throw-ins.** The code has no explicit handling of any of the three; they are only covered indirectly. The ATD gives the ball in 2D, so an aerial ball is indistinguishable from a ground ball and can look like control by the nearest player. A goalkeeper is treated like any other player: a save followed by a distribution counts as control by his team, and an uncontrolled parry does not change possession. A throw-in is only seen through the ball-outside-the-lines feature (0.5 m margin) that feeds the dead-ball state, and the restart goes to the first team that controls the ball. These cases are known limitations, not validated behaviour.
 
 ## 9. Limitations
 
@@ -140,10 +140,10 @@ With more time: the seven open DFL matches (Bassek et al., 2025), whose official
 Requirements: Python 3.11+ (tested on 3.13), git, about 3 GB of free RAM, and the challenge data in `data/tactical/` with its original file names.
 
 ```bash
-bash reproducir.sh <team_name>
+bash reproducir.sh MexCode
 ```
 
-This creates a virtual environment with pinned versions (`requirements-nuestro.txt`: numpy 2.5.3, pandas 3.0.5, scikit-learn 1.9.1, kloppy 3.18.0), downloads Metrica's sample data at a fixed commit, builds the degraded copies with fixed seeds, trains, writes `outputs/<team_name>.csv` and runs the official validator, in about 4 minutes on a laptop. Two runs give a byte-identical file (md5 `6cb2046fe5924ae3878a475281a68c23`).
+This creates a virtual environment with pinned versions (`requirements-nuestro.txt`: numpy 2.5.3, pandas 3.0.5, scikit-learn 1.9.1, kloppy 3.18.0), downloads Metrica's sample data at a fixed commit, builds the degraded copies with fixed seeds, trains, writes `outputs/MexCode.csv` and runs the official validator, in about 4 minutes on a laptop. Two runs give a byte-identical file (md5 `6cb2046fe5924ae3878a475281a68c23`).
 
 Other entry points: `python src/calibrar_ruido.py` (degradation levels), `cd src && python calibrar_histeresis.py` (hysteresis on the clean bench).
 
