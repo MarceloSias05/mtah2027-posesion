@@ -35,7 +35,7 @@ On this bench the official baseline ranks its four smoothing windows exactly as 
 | Metrica G3 | 1.27 m | 0.017 |
 | BAR-ATH tactical ATD | 1.91 m | 0.167 |
 
-A control rule tuned on the sample data ("a player within 1 m controls the ball") fires on 46–57% of ball frames there but only 28% in BAR-ATH. We therefore degrade the Metrica ball with two error terms: a slow drift (Gaussian noise smoothed over ~2 s) and frame-level jitter. The levels are chosen so that the median distance and jitter match BAR-ATH (`src/calibrar_ruido.py`): 1.25 m / 0.004 for G1 and G2, 1.0 m / 0.004 for G3. On the degraded bench the baseline drops to 0.323, closer to its real 0.243 on BAR-ATH, which suggests the degraded bench is the more realistic one.
+(The frame ranges 11185–90652 and 110808–190198 used in `src/calibrar_ruido.py` are the graded halves published in DATA.md; they are only used for statistics of the input tracking, never of the ground truth.) A control rule tuned on the sample data ("a player within 1 m controls the ball") fires on 46–57% of ball frames there but only 28% in BAR-ATH. We therefore degrade the Metrica ball with two error terms: a slow drift (Gaussian noise smoothed over ~2 s) and frame-level jitter. The levels are chosen so that the median distance and jitter match BAR-ATH (`src/calibrar_ruido.py`): 1.25 m / 0.004 for G1 and G2, 1.0 m / 0.004 for G3. On the degraded bench the baseline drops to 0.323, closer to its real 0.243 on BAR-ATH, which suggests the degraded bench is the more realistic one.
 
 ## 3. Pipeline (`src/generar_v3.py`)
 
@@ -95,7 +95,7 @@ We did not score our submission on the public 5-minute ground truth. It was used
 
 ## 6. Training data
 
-No labelled data from the provided game was used anywhere.
+No labelled data from the provided game was used anywhere. No hand labels or manual corrections of the provided game's tracking were used, and no external data about this match (event data, other tracking) was used.
 
 | dataset | source | labelled by | amount | used for |
 |---|---|---|---|---|

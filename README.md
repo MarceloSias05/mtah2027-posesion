@@ -22,7 +22,7 @@ The task ([challenge](docs/reto_original/CHALLENGE.md)): label every frame of th
 5. **Viterbi decoding**: three states, cost 25 for H↔A switches and 40 for entering or leaving D. This yields few, well-placed possessions.
 6. **Missing ball** (41% of frames): handled with gap length and position inside the gap; mostly decoded as `D`.
 
-Not used in the submitted pipeline: Smart Tagging, homography, tactical video and the ball detector in `tools/` (explored, not validated). Full rationale: [docs/technical_document.md](docs/technical_document.md) and [docs/COMO_FUNCIONA.md](docs/COMO_FUNCIONA.md) (Spanish).
+Not used in the submitted pipeline: Smart Tagging, homography, tactical video and the ball detector in `tools/` (tried and dropped). Full rationale: [docs/technical_document.md](docs/technical_document.md) and [docs/COMO_FUNCIONA.md](docs/COMO_FUNCIONA.md) (Spanish).
 
 ## Results
 
@@ -41,8 +41,9 @@ Official baseline on BAR-ATH (organisers): spellF1 0.2433. Our submission report
 ## Repository structure
 
 ```
-src/          Metrica bench, hysteresis rule, features, Viterbi, generar_v0..v3.py
-tools/        optional ball detector on video (heavy, not in the submission)
+src/          Metrica bench, hysteresis rule, features, Viterbi; generar_v3.py produces MexCode.csv
+              generar_v0/v1/v2.py: previous versions, kept for traceability of the calibration (grids in v1/v2)
+tools/        experimental ball detector, tried and dropped; not used to produce MexCode.csv
 docs/         technical_document.md, COMO_FUNCIONA.md, bitacora/ (log), reto_original/ (organisers' docs)
 evaluation/   official scorer and validator (unchanged), public 5-min GT, baselines
 starter/      official loaders and notebooks (unchanged)
