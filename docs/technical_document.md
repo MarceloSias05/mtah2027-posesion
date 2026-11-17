@@ -184,4 +184,4 @@ Other entry points: `python src/calibrar_ruido.py` (degradation levels), `cd src
 
 ## 11. Use of AI tools
 
-We used Claude (Anthropic) as a development assistant for code and analysis. Following the organisers' rule clarification of 11 November, which allows uploading the provided data to AI services, some of the tracking data was processed with it. The pipeline itself uses no LLM.
+We used Claude (Anthropic) as a development assistant for code and analysis. The pipeline itself uses no LLM.
