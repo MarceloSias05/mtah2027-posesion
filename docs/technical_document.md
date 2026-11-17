@@ -8,6 +8,41 @@ Submission file: `MexCode.csv` (regenerate with `bash reproducir.sh MexCode`)
 
 ---
 
+## At a glance
+
+| | |
+|---|---|
+| **Task** | Label each of the 199,319 frames of BAR-ATH as `H`, `A` or `D` (we never output `X`). Ranked on spellF1. |
+| **Input used** | Only the tactical ATD tracking of the provided match. |
+| **Method** | Hysteresis control rule and tracking features, a gradient-boosted per-frame classifier, then Viterbi decoding that charges for every change of owner. |
+| **Training data** | Metrica Sports' three public sample matches (labels from their event data) plus degraded copies of them. Nothing from the provided match. |
+| **Output** | 333 possessions, mean 16.8 s. Home 43.8%, away 26.2%, dead ball 30.0% of frames. |
+| **Evidence** | Out-of-sample spellF1 on the external bench: 0.529 on the degraded bench and 0.441 on an unseen-noise bench, against 0.323 for the official baseline on the degraded bench. We did not score our file on BAR-ATH, so we have no BAR-ATH number. |
+| **Reproduce** | `bash reproducir.sh MexCode` (about 4 min, CPU only). Output md5 `6cb2046fe5924ae3878a475281a68c23`. |
+
+```mermaid
+flowchart LR
+    A[Tactical ATD tracking] --> F[Per-frame features]
+    H[Hysteresis rule] --> F
+    F --> C[Classifier: P of H, A, D]
+    M[Metrica matches + degraded copies] -. training .-> C
+    C --> V[Viterbi decoding]
+    V --> O[MexCode.csv]
+```
+
+### Rules compliance
+
+| Rule | How we comply |
+|---|---|
+| No hand labels or manual corrections on the provided game | None used. Every label in the file comes from code. |
+| No full-match ground truth, nothing derived from it | Not used. The public 5-minute GT only checked format and alignment and was not scored. |
+| Labelled data only from other games | Metrica's sample matches, labelled by Metrica (section 6). |
+| Match data not redistributed | Not in the repository; `data/` is in `.gitignore`. |
+| Reproducible | Pinned dependencies, fixed seeds, byte-identical output (section 10). |
+| AI use disclosed | Section 11. |
+
+---
+
 ## 1. Approach in one paragraph
 
 We treat possession as a segmentation problem, because that is what spellF1 rewards. A gradient-boosted classifier gives a probability of H / A / D for every frame from tracking-derived signals, and a Viterbi decoder picks the most plausible sequence of possessions over the whole match, charging a cost for every change of owner and every entry into or exit from dead ball. Since nothing could be tuned on the provided game, we built a validation bench from Metrica's three public sample matches and the official scorer. When we noticed that the challenge's automatic tracking differs from the sample data (the ball sits about 2 m from the nearest player instead of 0.3–1.3 m, and jitters much more), we added "degraded" versions of the bench whose ball statistics match the challenge input. Because the exact shape of the challenge's tracking error is unknown, the final model is trained on several kinds of degradation and its decoder costs were chosen for robustness to a degradation it was not trained on.
