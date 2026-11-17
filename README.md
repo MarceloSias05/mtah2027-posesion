@@ -22,6 +22,16 @@ The task ([challenge](docs/reto_original/CHALLENGE.md)): label every frame of th
 5. **Viterbi decoding**: three states, cost 25 for H↔A switches and 40 for entering or leaving D. This yields few, well-placed possessions.
 6. **Missing ball** (41% of frames): handled with gap length and position inside the gap; mostly decoded as `D`.
 
+```mermaid
+flowchart LR
+    A[Tactical ATD tracking<br/>players + ball, metres] --> F[Per-frame features<br/>proximity, touch timing,<br/>ball state, location]
+    H[Hysteresis rule<br/>r=2.5 m, k=18 frames] --> F
+    M[Metrica sample matches<br/>events to labels<br/>clean + 3 degraded versions] -. training .-> C
+    F --> C[HistGradientBoosting<br/>P of H / A / D per frame]
+    C --> V[Viterbi decoding<br/>switch cost 25, dead ball cost 40]
+    V --> O[MexCode.csv<br/>199,319 labels]
+```
+
 Not used in the submitted pipeline: Smart Tagging, homography, tactical video and the ball detector in `tools/` (tried and dropped). Full rationale: [docs/technical_document.md](docs/technical_document.md) and [docs/COMO_FUNCIONA.md](docs/COMO_FUNCIONA.md) (Spanish).
 
 ## Results
